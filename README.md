@@ -1,2 +1,4 @@
 # Facebook-Custom-Audiences
-REST-API (cURL) for downloading or all custom audiences from Facebook Business Account
+Facebook Graph API for downloading or all custom audiences from Facebook Business Account. 
+
+https://developers.facebook.com/docs/marketing-api/reference/custom-audience/#Reading
