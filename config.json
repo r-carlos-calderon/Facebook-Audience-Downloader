@@ -1,4 +1,4 @@
 {
-  "business_account": 123456789,
-  "token": "system user token"
+	"token": "<SYSTEM_USER_TOKEN>",
+	"business_account": 1234567890
 }

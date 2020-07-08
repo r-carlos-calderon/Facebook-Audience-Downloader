@@ -9,7 +9,11 @@ from pandas import json_normalize
 # THIS SCRIPT DOWNLOADS METADATA AS TWO FILES FOR THE FOLLOWING: AUDIENCES AND TARGETING CRITERIA OF ADSETS
 
 # CONFIGS
-
+get_config = open('config.json')
+set_config = json.load(get_config)
+get_config.close()
+business_account = set_config['business_account']
+token = set_config['token']
 
 # UNIVERSAL PARAMS
 today = datetime.date.today()
