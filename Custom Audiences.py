@@ -48,10 +48,19 @@ total_num_audiences = 0
 for ind_a in df_acct.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVER ALL AUDIENCES (STEP 3)
     acct = str(df_acct['account_id'][ind_a])
     res = requests.get(
-         f'https://graph.facebook.com/v7.0/act_{acct}/customaudiences?fields=id&limit=9999&pretty=1&access_token={token}&export_format=csv')
+         f'https://graph.facebook.com/v7.0/act_{acct}/customaudiences?fields=id&limit=5000&pretty=1&access_token={token}')
     r1 = res.text
     r2 = json.loads(r1)
-    r3 = json.dumps(r2['data'])
+    while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT)
+        try:
+            for page_results in r2['data']:
+                all_audiences_json.append(page_results)
+                # Attempt to make a request to the next page of data, if it exists.
+            r2 = requests.get(r2['paging']['next']).json()
+        except KeyError:
+            # When there are no more pages (['paging']['next']), break from the loop
+            break
+    r3 = json.dumps(all_audiences_json)
     r4 = json.loads(r3)
     df_audiences = pd.DataFrame(r4)
     ind_b = 0

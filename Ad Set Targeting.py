@@ -50,7 +50,17 @@ for ind_a in df_acct.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DI
     res = requests.get(f'https://graph.facebook.com/v7.0/act_{acct}/adsets?fields=id,account_id&limit=9999&access_token={token}')
     r1 = res.text
     r2 = json.loads(r1)
-    r3 = json.dumps(r2['data'])
+    sys.stdout.write(f'Downloading ')  # OUTPUT FOR LOG FILE
+    while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT)
+        try:
+            for page_results in r2['data']:
+                all_adsets_json.append(page_results)
+                # Attempt to make a request to the next page of data, if it exists.
+            r2 = requests.get(r2['paging']['next']).json()
+        except KeyError:
+            # When there are no more pages (['paging']['next']), break from the loop
+            break
+    r3 = json.dumps(all_adsets_json)
     r4 = json.loads(r3)
     df_adset = pd.DataFrame(r4)
     ind_b = 0
@@ -61,9 +71,11 @@ for ind_a in df_acct.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DI
         r2 = json.loads(r1)
         r2.update(add_date)
         all_adsets_json.append(r2)
+        if ind_b % 100 == 0:
+            sys.stdout.write(f'.')
     num_adsets = ind_b + 1
     total_num_adsets += num_adsets
-    sys.stdout.write(f'Downloaded {num_adsets} adsets metadata from act_{acct}\n')  # OUTPUT FOR LOG FILE
+    sys.stdout.write(f'{num_adsets} adsets metadata from act_{acct}\n')  # OUTPUT FOR LOG FILE
 all_adsets_pretty_json = json.dumps(all_adsets_json, indent=2)
 print(all_adsets_pretty_json, file=open(f'{file_path}/adset_targeting_{audit_date}.json', 'w'))  # SAVE RAW ADSET TARGETING METADATA AS JSON
 open_adsets = open(f'{file_path}/adset_targeting_{audit_date}.json')
