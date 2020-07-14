@@ -49,7 +49,7 @@ for ind_a in df.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVE
         f'{FBGraphRequest}/{acct}/customaudiences?{request_params}')
     r1 = res.text
     r2 = json.loads(r1)
-    num_results = len(r2['data'])
+    num_results = len(r2)
     # SKIP ACCOUNTS WITH NO CUSTOM AUDIENCES
     if num_results != 0:
         while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT) REF: https://thd.co/2WiLrf2
@@ -60,7 +60,6 @@ for ind_a in df.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVE
                 get_next = r2['paging']['next']
                 r2 = requests.get(
                     f'{get_next}').json()
-                num_results += len(r2['data'])
             except KeyError:
                 # WHEN THERE ARE NO MORE PAGES (['paging']['next']), BREAK THE LOOP
                 break

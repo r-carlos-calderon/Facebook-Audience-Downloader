@@ -73,9 +73,6 @@ for ind_a in df.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVE
     # SKIP ACCOUNTS WITH NO CUSTOM AUDIENCES
     if num_results != 0:
         acct_audiences = []
-        t1 = datetime.datetime.now()
-        sys.stdout.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # OUTPUT FOR LOG FILE
-        log.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
         while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT) REF: https://thd.co/2WiLrf2
             try:
                 for pg_results in r2['data']:
@@ -86,15 +83,15 @@ for ind_a in df.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVE
                 r2 = requests.get(
                     f'{get_next}').json()
                 num_results += len(r2['data'])
-                t2 = datetime.datetime.now()
-                sys.stdout.write(f'\n{t2}, {log_string}, FETCHING, {num_results}')  # OUTPUT FOR LOG FILE
-                log.write(f'\n{t2}, {log_string}, FETCHING, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+                t1 = datetime.datetime.now()
+                sys.stdout.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # OUTPUT FOR LOG FILE
+                log.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
             except KeyError:
                 # WHEN THERE ARE NO MORE PAGES (['paging']['next']), BREAK THE LOOP
                 break
-        t3 = datetime.datetime.now()
-        sys.stdout.write(f'\n{t3}, {log_string}, DOWNLOADED, {num_results}')  # OUTPUT FOR LOG FILE
-        log.write(f'\n{t3}, {log_string}, DOWNLOADED, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+        t2 = datetime.datetime.now()
+        sys.stdout.write(f'\n{t2}, {log_string}, DOWNLOADED, {num_results}')  # OUTPUT FOR LOG FILE
+        log.write(f'\n{t2}, {log_string}, DOWNLOADED, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
         # SAVE RAW AUDIENCE METADATA FROM SINGLE AD ACCOUNT AS JSON
         acct_audiences_pjson = json.dumps(acct_audiences, indent=2)
         print(acct_audiences_pjson, file=open(f'{file_path}/{acct_filename}.json', 'w'))
@@ -112,9 +109,9 @@ final_audiences = json_normalize(load_audiences)
 final_audiences['date'] = today
 final_audiences.to_csv(f'{file_path}/{business_filename}.csv', index=False, sep=',', encoding='utf-8')
 
-t4 = datetime.datetime.now()
-sys.stdout.write(f'\n{t4}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # OUTPUT FOR LOG FILE
-log.write(f'\n{t4}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+t3 = datetime.datetime.now()
+sys.stdout.write(f'\n{t3}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # OUTPUT FOR LOG FILE
+log.write(f'\n{t3}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
 sys.stdout.close()
 
 # SAVE OUTPUT LOG AS CSV FILE
