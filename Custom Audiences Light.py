@@ -15,18 +15,18 @@ if not os.path.exists(f'{path}'):
 file_path = f'{path}'
 
 # CONFIGS <FIELDS> documentation ref: https://thd.co/30cb02m - <LIMIT> MIN = 25, MAX = 5000,
-# DEFAULTS TO MIN WHEN NOT DEFINED. THE QUANTITY AND COMPLEXITY OF FIELDS MAY REQUIRE A LOWER
+# DEFAULTS TO MIN WHEN NOT DEFINED. THE QUANTITY AND COMPLEXITY OF FIELDS MAY REQUIRE A LOWER LIMIT
 get_config = open('config.json')
 set_config = json.load(get_config)
 get_config.close()
 token = set_config['token']
 business_account = set_config['business_account']
-fields = set_config['fields']
-limit = set_config['limit']
+cust_fields = set_config['cust_fields']
+cust_limit = set_config['cust_limit']
 FBGraphRequest = 'https://graph.facebook.com/v7.0'
 params = {
-    'fields': fields,
-    'limit': limit,
+    'fields': cust_fields,
+    'limit': cust_limit,
     'access_token': token
 }
 request_params = urllib.parse.urlencode(params, doseq=True)

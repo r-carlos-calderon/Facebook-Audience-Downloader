@@ -5,24 +5,37 @@ import json
 import sys
 import os
 from pandas import json_normalize
+import urllib.parse
 
-# THIS SCRIPT DOWNLOADS TARGETING METADATA OF ADSETS AS CSV AND JSON
+# UNIVERSAL VARS
+today = datetime.date.today()
+audit_date = str(today)
+folder = 'ADSETS_TARGETING'
+path = f'{folder}/{audit_date}'
+if not os.path.exists(f'{path}'):
+    os.makedirs(f'{path}')
+file_path = f'{path}'
+log = sys.stdout
+sys.stdout = open(f'{file_path}/log_{audit_date}.txt', 'w')  # NAME OF LOG FILE
+sys.stdout.write(f'TIMESTAMP, BUSINESS_ACCOUNT, AD_ACCOUNT_ID, AD_ACCOUNT_NAME, EVENT, NUM')  # OUTPUT FOR LOG FILE
 
-# CONFIGS
+# CONFIGS <FIELDS> documentation ref: https://thd.co/30cb02m - <LIMIT> MIN = 25, MAX = 5000,
+# DEFAULTS TO MIN WHEN NOT DEFINED. THE QUANTITY AND COMPLEXITY OF FIELDS MAY REQUIRE A LOWER LIMIT
 get_config = open('config.json')
 set_config = json.load(get_config)
 get_config.close()
-business_account = set_config['business_account']
 token = set_config['token']
+business_account = set_config['business_account']
+adset_fields = set_config['adset_fields']
+adset_limit = set_config['adset_limit']
+FBGraphRequest = 'https://graph.facebook.com/v7.0'
+params = {
+    'fields': adset_fields,
+    'limit': adset_limit,
+    'access_token': token
+}
+request_params = urllib.parse.urlencode(params, doseq=True)
 
-# UNIVERSAL PARAMS
-today = datetime.date.today()
-audit_date = today
-add_date = {'audit_date': str(audit_date)}
-path_output = 'AUDIENCE_TARGETING'
-if not os.path.exists(f'{path_output}/{audit_date}'):
-     os.makedirs(f'{path_output}/{audit_date}')
-file_path = f'{path_output}/{audit_date}'
 
 # CHANGES BOOLEAN VALUES IN JSON RESPONSE to LOWERCASE STRING
 def convert(obj):
@@ -34,55 +47,75 @@ def convert(obj):
         return {convert(key): convert(value) for key, value in obj.items()}
     return obj
 
+
 # DISCOVER ALL AD ACCOUNTS IN BUSINESS ACCOUNT (STEP 1)
-res = requests.get(f'https://graph.facebook.com/v7.0/{business_account}/owned_ad_accounts?access_token={token}&limit=500')
+res = requests.get(
+    f'{FBGraphRequest}/{business_account}/owned_ad_accounts?fields=id,name&access_token={token}&limit=500')
 r1 = res.text
 r2 = json.loads(r1)
 r3 = json.dumps(r2['data'])
 r4 = json.loads(r3)
-df_acct = pd.DataFrame(r4)
+df = pd.DataFrame(r4)
 
-# BEGIN DOWNLOADING ALL ADSET TARGETING METADATA
-all_adsets_json = []
-total_num_adsets = 0
-for ind_a in df_acct.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVER ALL ADSETS (STEP 2)
-    acct = str(df_acct['account_id'][ind_a])
-    res = requests.get(f'https://graph.facebook.com/v7.0/act_{acct}/adsets?fields=id,account_id&limit=9999&access_token={token}')
+# BEGIN DOWNLOADING ALL AUDIENCE METADATA
+business_adsets = []
+business_filename = f'{business_account}_adsets_{audit_date}'  # NAME OF FILE FOR ALL AUDIENCES IN BUSINESS ACCOUNT
+for ind_a in df.index:  # ITERATE THROUGH ALL AD ACCOUNTS FROM STEP 1 TO DISCOVER ALL AUDIENCES (STEP 2)
+    acct = str(df['id'][ind_a])
+    acct_name = str(df['name'][ind_a])
+    log_string = f'{business_account}, {acct}, {acct_name}'
+    acct_filename = f'{acct}_adsets_{audit_date}'  # NAME OF FILE FOR AUDIENCES IN AD ACCOUNT
+    res = requests.get(
+        f'{FBGraphRequest}/{acct}/adsets?{request_params}')
     r1 = res.text
     r2 = json.loads(r1)
-    sys.stdout.write(f'Downloading ')  # OUTPUT FOR LOG FILE
-    while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT)
-        try:
-            for page_results in r2['data']:
-                all_adsets_json.append(page_results)
-                # Attempt to make a request to the next page of data, if it exists.
-            r2 = requests.get(r2['paging']['next']).json()
-        except KeyError:
-            # When there are no more pages (['paging']['next']), break from the loop
-            break
-    r3 = json.dumps(all_adsets_json)
-    r4 = json.loads(r3)
-    df_adset = pd.DataFrame(r4)
-    ind_b = 0
-    for ind_b in df_adset.index:  # ITERATE THROUGH ALL ADSETS FROM STEP 2 >> DOWNLOAD ADSET TARGETING METADATA
-        adset_id = str(df_adset['id'][ind_b])
-        res = requests.get(f'https://graph.facebook.com/v7.0/{adset_id}?fields=id,status,targeting&access_token={token}')
-        r1 = res.text
-        r2 = json.loads(r1)
-        r2.update(add_date)
-        all_adsets_json.append(r2)
-        if ind_b % 100 == 0:
-            sys.stdout.write(f'.')
-    num_adsets = ind_b + 1
-    total_num_adsets += num_adsets
-    sys.stdout.write(f'{num_adsets} adsets metadata from act_{acct}\n')  # OUTPUT FOR LOG FILE
-all_adsets_pretty_json = json.dumps(all_adsets_json, indent=2)
-print(all_adsets_pretty_json, file=open(f'{file_path}/adset_targeting_{audit_date}.json', 'w'))  # SAVE RAW ADSET TARGETING METADATA AS JSON
-open_adsets = open(f'{file_path}/adset_targeting_{audit_date}.json')
-load_adsets = json.load(open_adsets)
-open_adsets.close()
-final_adsets = json_normalize(load_adsets)
-final_adsets.to_csv(f'{file_path}/adset_targeting_trimmed_{audit_date}.csv', columns=['id', 'status', 'audit_date', 'targeting.age_max', 'targeting.age_min', 'targeting.custom_audiences', 'targeting.geo_locations.countries', 'targeting.geo_locations.location_types', 'targeting.publisher_platforms', 'targeting.facebook_positions', 'targeting.instagram_positions', 'targeting.device_platforms', 'targeting.flexible_spec', 'targeting.excluded_geo_locations.regions', 'targeting.geo_locations.cities', 'targeting.excluded_geo_locations.cities', 'targeting.geo_locations.regions', 'targeting.geo_locations.geo_markets', 'targeting.app_install_state', 'targeting.user_device', 'targeting.user_os', 'targeting.excluded_custom_audiences', 'targeting.excluded_geo_locations.geo_markets', 'targeting.excluded_product_audience_specs', 'targeting.product_audience_specs'], index=False, sep=',', encoding='utf-8')  # TRIM UNNECESSARY ADSET TARGETING METADATA AND SAVE AS CSV
-numacct = ind_a + 1
-sys.stdout.write(f'\nDownloaded total of {total_num_adsets} adsets across {numacct} accounts in business account #{business_account}.\n\n')
-# END DOWNLOADING ALL AD SET TARGETING METADATA
+    r3 = r2['data']
+    num_results = len(r3)
+    # SKIP ACCOUNTS WITH NO CUSTOM AUDIENCES
+    if num_results != 0:
+        acct_adsets = []
+        while True:  # GET NEXT PAGE RESULTS (GRAPH API ENDPOINT) REF: https://thd.co/2WiLrf2
+            try:
+                for pg_results in r2['data']:
+                    acct_adsets.append(pg_results)
+                    business_adsets.append(pg_results)
+                # ATTEMPT TO MAKE A REQUEST FOR THE NEXT PAGE OF DATA, IF IT EXISTS
+                get_next = r2['paging']['next']
+                r2 = requests.get(
+                    f'{get_next}').json()
+                num_results += len(r2['data'])
+                t1 = datetime.datetime.now()
+                sys.stdout.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # OUTPUT FOR LOG FILE
+                log.write(f'\n{t1}, {log_string}, FETCHING, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+            except KeyError:
+                # WHEN THERE ARE NO MORE PAGES (['paging']['next']), BREAK THE LOOP
+                break
+        t2 = datetime.datetime.now()
+        sys.stdout.write(f'\n{t2}, {log_string}, DOWNLOADED, {num_results}')  # OUTPUT FOR LOG FILE
+        log.write(f'\n{t2}, {log_string}, DOWNLOADED, {num_results}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+        # SAVE RAW AUDIENCE METADATA FROM SINGLE AD ACCOUNT AS JSON
+        acct_adsets_pjson = json.dumps(acct_adsets, indent=2)
+        print(acct_adsets_pjson, file=open(f'{file_path}/{acct_filename}.json', 'w'))
+
+# SAVE AUDIENCE METADATA FROM ALL AD ACCOUNTS AS JSON FILE
+total_count = len(business_adsets)
+business_adsets_pjson = json.dumps(convert(business_adsets), indent=2)  # CONVERTS BOOLEAN VALUES TO TEXT STRINGS
+print(business_adsets_pjson, file=open(f'{file_path}/{business_filename}.json', 'w'))
+
+# SAVE AUDIENCE METADATA FROM ALL AD ACCOUNTS AS CSV FILE
+open_audiences = open(f'{file_path}/{business_filename}.json')
+load_audiences = json.load(open_audiences)
+open_audiences.close()
+final_audiences = json_normalize(load_audiences)
+final_audiences['date'] = today
+final_audiences.to_csv(f'{file_path}/{business_filename}.csv', index=False, sep=',', encoding='utf-8')
+
+t3 = datetime.datetime.now()
+sys.stdout.write(f'\n{t3}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # OUTPUT FOR LOG FILE
+log.write(f'\n{t3}, {business_account}, ALL, ALL, DOWNLOADED, {total_count}')  # SCREEN OUTPUT FOR TROUBLESHOOTING
+sys.stdout.close()
+
+# SAVE OUTPUT LOG AS CSV FILE
+open_log = pd.read_csv(f'{file_path}/log_{audit_date}.txt')
+open_log['DATE'] = today
+open_log.to_csv(f'{file_path}/log_{audit_date}.csv', index=None)
