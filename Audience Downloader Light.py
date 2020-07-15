@@ -16,7 +16,7 @@ file_path = f'{path}'
 
 # CONFIGS <FIELDS> documentation ref: https://thd.co/30cb02m - <LIMIT> MIN = 25, MAX = 5000,
 # DEFAULTS TO MIN WHEN NOT DEFINED. THE QUANTITY AND COMPLEXITY OF FIELDS MAY REQUIRE A LOWER LIMIT
-get_config = open('config.json')
+get_config = open('config.json.json')
 set_config = json.load(get_config)
 get_config.close()
 token = set_config['token']
